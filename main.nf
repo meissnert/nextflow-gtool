@@ -1,20 +1,41 @@
 #!/usr/bin/env nextflow
 
-SNP = Channel.fromPath('/home/niels/Arbeitsfläche/Nextflow/SNP/*.gen.gz')
-Sample = Channel.fromPath('/home/niels/Arbeitsfläche/Nextflow/SNP/*.sample.gz')
-PED = Channel.fromPath('/home/niels/Arbeitsfläche/Nextflow/SNP/*.gen.gz')
-MAP = Channel.fromPath('/home/niels/Arbeitsfläche/Nextflow/SNP/*.sample.gz')
+params.snp = Channel.fromPath("$baseDir/data/*.gen.gz")
+params.sample = Channel.fromPath("$baseDir/data/*.sample.gz")
+params.out = "$baseDir/results"
 
-process anyValue {
+out = file(params.out, type: 'dir')
+
+log.info "GTOOL"
+log.info "================================="
+log.info "SNP                : ${params.snp}"
+log.info "SAMPLE:            : ${params.sample}"
+log.info ""
+log.info "Current home       : $HOME"
+log.info "Current user       : $USER"
+log.info "Current path       : $PWD"
+log.info "Script dir         : $baseDir"
+log.info "Working dir        : $workDir"
+log.info "Output dir         : ${out}"
+log.info ""
+
+process gtools {
+
   input:
-  file X from SNP
-  file Y from Sample
-  val Z from PED
-  val A from MAP
+  file snp from params.snp
+  file sample from params.sample
 
-  script:
-  
+  output:
+  file '*.ped.gz' into results
+  file '*.map.gz' into results
+
   """
-  /home/niels/Arbeitsfläche/Gtool/gtool -G --g ${X} --s ${Y} --ped ${Z} --map ${A}.map --snp
+  prefix=\$(echo $snp | sed 's/.gen.gz.*//')
+  ~/bin/gtool -G --g $snp --s $sample --ped \$prefix.ped --map \$prefix.map --snp
   """
+}
+
+results.subscribe {
+    log.info "Copying results to file: ${out}/${it.name}"
+    it.copyTo(out)
 }
